@@ -10,9 +10,9 @@
 - 总活跃
 - 老用户日活（按 总活跃 - 新增 兜底计算）
 - 新增
-- 次留（暂置 0）
-- 3留（暂置 0）
-- 7留（暂置 0）
+- 次留
+- 3留
+- 7留
 - 操作时间
 
 ## 依赖
@@ -27,6 +27,7 @@ python3 scripts/ga4_fuli_report.py \
   --service-account-json /path/to/service-account.json \
   --start-date 2026-03-01 \
   --end-date 2026-03-31 \
+  --retention-mode zero \
   --pretty
 ```
 
@@ -43,7 +44,13 @@ python3 scripts/ga4_fuli_report.py \
 - `总活跃` = GA4 `activeUsers`
 - `新增` = GA4 `newUsers`
 - `老用户日活` = `总活跃 - 新增`
-- `次留 / 3留 / 7留` 目前没有直接从 GA4 拉，先置 0
+- `次留 / 3留 / 7留` 当前支持两种模式：
+  - `--retention-mode zero`：全部置 0，最稳
+  - `--retention-mode proxy-new-users`：用未来第 N 天 `newUsers` 做临时占位，仅用于前端联调，不代表真实留存口径
+
+## 重要提醒
+`proxy-new-users` 只是过渡方案，目的是先把前端趋势图和卡片跑起来。
+如果要和你后台日报完全一致，仍然需要后续确认真正的留存计算来源。
 
 ## 下一步建议
 如果你要和后台日报完全对齐，建议后续继续补：

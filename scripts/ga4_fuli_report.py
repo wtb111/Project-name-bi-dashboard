@@ -77,22 +77,52 @@ def parse_run_report_rows(resp: Dict) -> List[Dict]:
     return rows
 
 
-def build_output_rows(raw_rows: List[Dict]) -> List[Dict]:
+def build_retention_lookup(raw_rows: List[Dict], mode: str) -> Dict[str, Dict[str, int]]:
+    """
+    当前先提供可切换的留存口径骨架。
+
+    mode=zero:
+      次留/3留/7留 全部置 0
+
+    mode=proxy-new-users:
+      使用未来第 N 天 newUsers 作为近似占位值，仅用于前端联调，
+      不代表真实 GA4 cohort 留存口径。
+    """
+    lookup: Dict[str, Dict[str, int]] = {}
+    by_date = {row["date"]: row for row in raw_rows}
+    parsed_dates = sorted(by_date.keys())
+
+    for d in parsed_dates:
+      lookup[d] = {"次留": 0, "3留": 0, "7留": 0}
+      if mode != "proxy-new-users":
+        continue
+      base_date = datetime.strptime(d, "%Y-%m-%d")
+      for days, label in [(1, "次留"), (3, "3留"), (7, "7留")]:
+        future = (base_date + timedelta(days=days)).strftime("%Y-%m-%d")
+        future_row = by_date.get(future)
+        if future_row:
+          lookup[d][label] = int(round(future_row.get("newUsers", 0)))
+    return lookup
+
+
+def build_output_rows(raw_rows: List[Dict], retention_mode: str = "zero") -> List[Dict]:
     updated_at = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    retention_lookup = build_retention_lookup(raw_rows, retention_mode)
     output = []
     for row in raw_rows:
         active = int(round(row.get("activeUsers", 0)))
         new_users = int(round(row.get("newUsers", 0)))
         old_active = max(active - new_users, 0)
+        retention = retention_lookup.get(row["date"], {"次留": 0, "3留": 0, "7留": 0})
         output.append(
             {
                 "日期": row["date"],
                 "总活跃": active,
                 "老用户日活": old_active,
                 "新增": new_users,
-                "次留": 0,
-                "3留": 0,
-                "7留": 0,
+                "次留": retention["次留"],
+                "3留": retention["3留"],
+                "7留": retention["7留"],
                 "操作时间": updated_at,
             }
         )
@@ -109,6 +139,12 @@ def main():
     parser.add_argument("--output", default="", help="Write JSON to file instead of stdout")
     parser.add_argument("--pretty", action="store_true", help="Pretty-print JSON")
     parser.add_argument("--raw", action="store_true", help="Output raw GA4 rows instead of dashboard format")
+    parser.add_argument(
+        "--retention-mode",
+        default="zero",
+        choices=["zero", "proxy-new-users"],
+        help="Retention fill strategy: zero = fill 0; proxy-new-users = use future newUsers as a temporary placeholder for front-end debugging",
+    )
     args = parser.parse_args()
 
     if not args.service_account_json:
@@ -129,7 +165,7 @@ def main():
 
     resp = run_report(creds.token, args.property_id, body)
     raw_rows = parse_run_report_rows(resp)
-    payload = raw_rows if args.raw else build_output_rows(raw_rows)
+    payload = raw_rows if args.raw else build_output_rows(raw_rows, retention_mode=args.retention_mode)
 
     data = json.dumps(payload, ensure_ascii=False, indent=2 if args.pretty else None)
     if args.output:
