@@ -60,7 +60,7 @@ def run_report(access_token: str, property_id: str, body: Dict) -> Dict:
         raise RuntimeError(f"GA4 API request failed: {e.code} {detail}") from e
 
 
-def parse_run_report_rows(resp: Dict) -> List[Dict]:
+def parse_daily_rows(resp: Dict) -> List[Dict]:
     rows = []
     for row in resp.get("rows", []):
         dims = row.get("dimensionValues", [])
@@ -77,37 +77,81 @@ def parse_run_report_rows(resp: Dict) -> List[Dict]:
     return rows
 
 
-def build_retention_lookup(raw_rows: List[Dict], mode: str) -> Dict[str, Dict[str, int]]:
-    """
-    当前先提供可切换的留存口径骨架。
+def parse_retention_rows(resp: Dict) -> List[Dict]:
+    rows = []
+    for row in resp.get("rows", []):
+        dims = row.get("dimensionValues", [])
+        mets = row.get("metricValues", [])
+        date_raw = dims[0].get("value", "") if len(dims) > 0 else ""
+        first_raw = dims[1].get("value", "") if len(dims) > 1 else ""
+        date_fmt = f"{date_raw[:4]}-{date_raw[4:6]}-{date_raw[6:8]}" if len(date_raw) == 8 else date_raw
+        first_fmt = f"{first_raw[:4]}-{first_raw[4:6]}-{first_raw[6:8]}" if len(first_raw) == 8 else first_raw
+        rows.append(
+            {
+                "date": date_fmt,
+                "firstSessionDate": first_fmt,
+                "activeUsers": float(mets[0].get("value", 0)) if len(mets) > 0 else 0,
+            }
+        )
+    return rows
 
+
+def build_retention_lookup(raw_rows: List[Dict], mode: str, retention_rows: List[Dict] | None = None) -> Dict[str, Dict[str, int]]:
+    """
     mode=zero:
       次留/3留/7留 全部置 0
 
     mode=proxy-new-users:
       使用未来第 N 天 newUsers 作为近似占位值，仅用于前端联调，
       不代表真实 GA4 cohort 留存口径。
+
+    mode=cohort-active-users:
+      使用 GA4 查询(date, firstSessionDate, activeUsers) 计算留存人数：
+      - 次留: date - firstSessionDate = 1
+      - 3留: date - firstSessionDate = 3
+      - 7留: date - firstSessionDate = 7
     """
     lookup: Dict[str, Dict[str, int]] = {}
     by_date = {row["date"]: row for row in raw_rows}
     parsed_dates = sorted(by_date.keys())
 
     for d in parsed_dates:
-      lookup[d] = {"次留": 0, "3留": 0, "7留": 0}
-      if mode != "proxy-new-users":
-        continue
-      base_date = datetime.strptime(d, "%Y-%m-%d")
-      for days, label in [(1, "次留"), (3, "3留"), (7, "7留")]:
-        future = (base_date + timedelta(days=days)).strftime("%Y-%m-%d")
-        future_row = by_date.get(future)
-        if future_row:
-          lookup[d][label] = int(round(future_row.get("newUsers", 0)))
+        lookup[d] = {"次留": 0, "3留": 0, "7留": 0}
+
+    if mode == "proxy-new-users":
+        for d in parsed_dates:
+            base_date = datetime.strptime(d, "%Y-%m-%d")
+            for days, label in [(1, "次留"), (3, "3留"), (7, "7留")]:
+                future = (base_date + timedelta(days=days)).strftime("%Y-%m-%d")
+                future_row = by_date.get(future)
+                if future_row:
+                    lookup[d][label] = int(round(future_row.get("newUsers", 0)))
+        return lookup
+
+    if mode == "cohort-active-users" and retention_rows:
+        for row in retention_rows:
+            first_date = row.get("firstSessionDate")
+            active_date = row.get("date")
+            if not first_date or not active_date:
+                continue
+            try:
+                diff = (datetime.strptime(active_date, "%Y-%m-%d") - datetime.strptime(first_date, "%Y-%m-%d")).days
+            except ValueError:
+                continue
+            label = {1: "次留", 3: "3留", 7: "7留"}.get(diff)
+            if not label:
+                continue
+            if first_date not in lookup:
+                lookup[first_date] = {"次留": 0, "3留": 0, "7留": 0}
+            lookup[first_date][label] += int(round(row.get("activeUsers", 0)))
+        return lookup
+
     return lookup
 
 
-def build_output_rows(raw_rows: List[Dict], retention_mode: str = "zero") -> List[Dict]:
+def build_output_rows(raw_rows: List[Dict], retention_mode: str = "zero", retention_rows: List[Dict] | None = None) -> List[Dict]:
     updated_at = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-    retention_lookup = build_retention_lookup(raw_rows, retention_mode)
+    retention_lookup = build_retention_lookup(raw_rows, retention_mode, retention_rows=retention_rows)
     output = []
     for row in raw_rows:
         active = int(round(row.get("activeUsers", 0)))
@@ -142,8 +186,8 @@ def main():
     parser.add_argument(
         "--retention-mode",
         default="zero",
-        choices=["zero", "proxy-new-users"],
-        help="Retention fill strategy: zero = fill 0; proxy-new-users = use future newUsers as a temporary placeholder for front-end debugging",
+        choices=["zero", "proxy-new-users", "cohort-active-users"],
+        help="Retention fill strategy: zero = fill 0; proxy-new-users = temporary placeholder; cohort-active-users = use GA4 date + firstSessionDate + activeUsers to compute retention counts",
     )
     args = parser.parse_args()
 
@@ -155,7 +199,7 @@ def main():
     end_date = iso_date(args.end_date)
 
     creds = load_service_account_credentials(args.service_account_json)
-    body = {
+    daily_body = {
         "dimensions": [{"name": "date"}],
         "metrics": [{"name": "activeUsers"}, {"name": "newUsers"}],
         "dateRanges": [{"startDate": start_date, "endDate": end_date}],
@@ -163,9 +207,27 @@ def main():
         "orderBys": [{"dimension": {"dimensionName": "date"}, "desc": False}],
     }
 
-    resp = run_report(creds.token, args.property_id, body)
-    raw_rows = parse_run_report_rows(resp)
-    payload = raw_rows if args.raw else build_output_rows(raw_rows, retention_mode=args.retention_mode)
+    retention_start_date = (datetime.strptime(start_date, "%Y-%m-%d") - timedelta(days=31)).strftime("%Y-%m-%d")
+    retention_body = {
+        "dimensions": [{"name": "date"}, {"name": "firstSessionDate"}],
+        "metrics": [{"name": "activeUsers"}],
+        "dateRanges": [{"startDate": retention_start_date, "endDate": end_date}],
+        "limit": 100000,
+        "orderBys": [
+            {"dimension": {"dimensionName": "date"}, "desc": False},
+            {"dimension": {"dimensionName": "firstSessionDate"}, "desc": False}
+        ],
+    }
+
+    daily_resp = run_report(creds.token, args.property_id, daily_body)
+    raw_rows = parse_daily_rows(daily_resp)
+
+    retention_rows = []
+    if args.retention_mode == "cohort-active-users":
+        retention_resp = run_report(creds.token, args.property_id, retention_body)
+        retention_rows = parse_retention_rows(retention_resp)
+
+    payload = raw_rows if args.raw else build_output_rows(raw_rows, retention_mode=args.retention_mode, retention_rows=retention_rows)
 
     data = json.dumps(payload, ensure_ascii=False, indent=2 if args.pretty else None)
     if args.output:
