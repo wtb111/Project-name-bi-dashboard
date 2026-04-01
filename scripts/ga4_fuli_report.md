@@ -21,6 +21,7 @@ pip install google-auth
 ```
 
 ## 用法
+直接跑 Python：
 ```bash
 python3 scripts/ga4_fuli_report.py \
   --property-id 361679028 \
@@ -38,6 +39,22 @@ python3 scripts/ga4_fuli_report.py \
   --service-account-json /path/to/service-account.json \
   --output ./fuli-ga4.json \
   --pretty
+```
+
+一键更新脚本：
+```bash
+bash scripts/update_fuli_data.sh
+```
+
+支持环境变量覆盖：
+```bash
+GA4_SERVICE_ACCOUNT_JSON=/path/to/service-account.json \
+GA4_PROPERTY_ID=361679028 \
+GA4_START_DATE=2026-02-28 \
+GA4_END_DATE=2026-03-31 \
+GA4_RETENTION_MODE=cohort-active-users \
+GA4_OUTPUT_JSON=./fuli-ga4.json \
+bash scripts/update_fuli_data.sh
 ```
 
 ## 当前口径说明
