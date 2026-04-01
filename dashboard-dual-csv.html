@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WJ-特战队1-app运营组 工作台看板</title>
+  <style>
+    :root {
+      --bg: #0b1220;
+      --panel: #121a2b;
+      --panel-2: #17233a;
+      --text: #eaf1ff;
+      --muted: #93a4c3;
+      --line: rgba(255,255,255,0.08);
+      --green: #27d17f;
+      --red: #ff5d73;
+      --orange: #ffb84d;
+      --blue: #4da3ff;
+      --shadow: 0 10px 30px rgba(0,0,0,.25);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;
+      background: linear-gradient(180deg, #09101d 0%, #0d1526 100%);
+      color: var(--text);
+    }
+    .wrap { max-width: 1440px; margin: 0 auto; padding: 24px; }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+    .title-box {
+      background: linear-gradient(135deg, rgba(77,163,255,.18), rgba(39,209,127,.10));
+      border: 1px solid var(--line); border-radius: 18px; padding: 20px 22px; box-shadow: var(--shadow);
+      flex: 1; min-width: 320px;
+    }
+    .title-box h1 { margin: 0 0 8px; font-size: 28px; line-height: 1.2; }
+    .title-box p { margin: 0; color: var(--muted); font-size: 14px; }
+    .toolbar { margin-top: 16px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+    .btn, .file-label, select {
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: 10px 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,.1);
+      background: rgba(255,255,255,.06); color: var(--text); cursor: pointer; text-decoration: none;
+      font-size: 14px; font-weight: 600;
+    }
+    select { min-width: 180px; appearance: none; outline: none; }
+    .btn:hover, .file-label:hover, select:hover { background: rgba(255,255,255,.1); }
+    input[type=file] { display: none; }
+    .hint { color: var(--muted); font-size: 13px; }
+    .meta {
+      background: var(--panel); border: 1px solid var(--line); border-radius: 18px;
+      padding: 18px 20px; min-width: 320px; box-shadow: var(--shadow);
+    }
+    .meta-row { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; padding: 6px 0; color: var(--muted); }
+    .meta-row strong { color: var(--text); }
+    .status {
+      margin: 16px 0 20px; padding: 12px 14px; border-radius: 14px;
+      background: rgba(77,163,255,.08); border: 1px solid rgba(77,163,255,.18); color: #cfe4ff;
+      font-size: 14px;
+    }
+    .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+    .card {
+      background: linear-gradient(180deg, var(--panel) 0%, var(--panel-2) 100%);
+      border: 1px solid var(--line); border-radius: 18px; padding: 18px;
+      box-shadow: var(--shadow); min-height: 155px; display: flex; flex-direction: column; justify-content: space-between;
+    }
+    .card h3 { margin: 0; font-size: 14px; color: var(--muted); font-weight: 600; }
+    .value { font-size: 34px; font-weight: 800; letter-spacing: .5px; margin: 10px 0 8px; word-break: break-word; }
+    .sub-values { display: flex; gap: 14px; flex-wrap: wrap; font-size: 14px; color: var(--text); margin-top: 4px; }
+    .sub-values span { background: rgba(255,255,255,.05); padding: 6px 10px; border-radius: 999px; border: 1px solid rgba(255,255,255,.06); }
+    .compare { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); padding-top: 8px; border-top: 1px dashed rgba(255,255,255,.08); flex-wrap: wrap; }
+    .tag-up, .tag-down, .tag-flat { display: inline-block; padding: 4px 8px; border-radius: 999px; font-weight: 700; font-size: 12px; }
+    .tag-up { background: rgba(39,209,127,.15); color: var(--green); }
+    .tag-down { background: rgba(255,93,115,.15); color: var(--red); }
+    .tag-flat { background: rgba(255,184,77,.15); color: var(--orange); }
+    .section {
+      margin-top: 24px; background: var(--panel); border: 1px solid var(--line);
+      border-radius: 18px; padding: 18px; box-shadow: var(--shadow);
+    }
+    .section h2 { margin: 0 0 14px; font-size: 18px; }
+    .chart-controls { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+    .chart-wrap {
+      background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.01));
+      border: 1px solid rgba(255,255,255,.06);
+      border-radius: 16px;
+      padding: 12px;
+    }
+    canvas { width: 100%; height: 360px; display: block; }
+    .chart-note { color: var(--muted); font-size: 12px; margin-top: 10px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; color: var(--text); }
+    th, td { border-bottom: 1px solid rgba(255,255,255,.08); padding: 10px 8px; text-align: left; vertical-align: top; }
+    th { color: var(--muted); font-weight: 600; }
+    @media (max-width: 1100px) { .grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+    @media (max-width: 640px) {
+      .grid { grid-template-columns: 1fr; }
+      .value { font-size: 28px; }
+      .title-box, .meta { min-width: unset; width: 100%; }
+      canvas { height: 280px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="header">
+      <div class="title-box">
+        <h1>WJ-特战队1-app运营组</h1>
+        <p>双项目工作台：51吃瓜（CSV） + 51福利导航（统一数据取数）</p>
+        <div class="toolbar">
+          <select id="projectSelect">
+            <option value="51吃瓜">51吃瓜（CSV）</option>
+            <option value="51福利导航">51福利导航（统一取数）</option>
+          </select>
+          <label class="file-label" for="csvFile">选择 CSV 文件</label>
+          <input id="csvFile" type="file" accept=".csv,text/csv,application/json,.json" />
+          <select id="dateSelect"><option value="">请选择日期</option></select>
+          <button class="btn" id="loadSampleBtn">加载内置示例数据</button>
+          <span class="hint" id="toolbarHint">51吃瓜：继续导入 CSV；51福利导航：使用统一字段数据（可先导入 JSON 调试）</span>
+        </div>
+      </div>
+      <div class="meta">
+        <div class="meta-row"><span>当前项目</span><strong id="currentProject">51吃瓜</strong></div>
+        <div class="meta-row"><span>当前选择日期</span><strong id="latestDate">-</strong></div>
+        <div class="meta-row"><span>对比日期</span><strong id="prevDate">-</strong></div>
+        <div class="meta-row"><span>数据来源</span><strong id="dataSource">未加载</strong></div>
+        <div class="meta-row"><span>操作时间</span><strong id="updatedAt">-</strong></div>
+      </div>
+    </div>
+
+    <div class="status" id="statusBox">请导入 CSV 文件，然后在日期下拉框里选择你要查看的日期。</div>
+    <div class="grid" id="cards"></div>
+
+    <div class="section">
+      <h2>月度/周期趋势折线图</h2>
+      <div class="chart-controls">
+        <select id="metricSelect"></select>
+        <select id="rangeSelect">
+          <option value="7">近7天</option>
+          <option value="15">近15天</option>
+          <option value="30" selected>近30天</option>
+          <option value="9999">全部</option>
+        </select>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="trendChart" width="1200" height="360"></canvas>
+      </div>
+      <div class="chart-note">支持切换指标与周期范围。51吃瓜使用 CSV；51福利导航建议后端输出统一字段（日期、总活跃、老用户日活、新增、次留、3留、7留、操作时间）后再给前端展示。</div>
+    </div>
+
+    <div class="section">
+      <h2>指标明细</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>指标</th>
+            <th>取值字段</th>
+            <th>当前值</th>
+            <th>昨日值</th>
+            <th>环比</th>
+          </tr>
+        </thead>
+        <tbody id="detailBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const sampleCsv = `id,日期,新增,日活跃,月活跃,官网访问数,安卓下载数,苹果下载数,PWA下载数,window下载数,macOS下载数,总点击数,官网点击率%,金币消耗额,金币消耗数,网页主线(成功/失败/成功率),网页备用(成功/失败/成功率),总充值统计,APP充值统计,网站充值统计,留存统计,缓存数据（废弃）,操作时间
+"1329","2026-03-29","662824"," 活跃：1384737 苹果活跃：0 安卓活跃：951676 PWA活跃：403840 Windows活跃：1457 Macos活跃：87 网站活跃：27677 "," 活跃：1286502 苹果活跃：0 安卓活跃：864463 PWA活跃：393137 Windows活跃：1280 Macos活跃：74 网站活跃：27548 ","267965","53817","0","37358","783","503","92461","34.50","16016.00","424"," 0 | 0 | 0.00% "," 0 | 0 | 0.00% "," 总-总充金额：26950 总-金币金额：15600 总-VIP金额：11350 总-总充人数：309 总-总充单数：323 总-新充金额：8050 总-新充人数：84 总-新充单数：87 总-老充金额：18900 总-老充人数：225 总-老充单数：236 总-订单数：568 总-成功率：54.40% "," APP-总充金额：25950 APP-金币金额：14600 APP-VIP金额：11350 APP-总充人数：299 APP-总充单数：313 APP-新充金额：7350 APP-新充人数：77 APP-新充单数：80 APP-老充金额：18600 APP-老充人数：222 APP-老充单数：233 APP-订单数：524 APP-成功率：57.06% "," 网站-总充金额：1000 网站-金币金额：1000 网站-VIP金额：0 网站-总充人数：10 网站-总充单数：10 网站-新充金额：700 网站-新充人数：7 网站-新充单数：7 网站-老充金额：300 网站-老充人数：3 网站-老充单数：3 网站-订单数：44 网站-成功率：22.73% "," 1日留存: 19049.00 3日留存: 6954.00 7日留存: 11114.00 "," 总充值：26950.00 金币充值：15600.00 VIP充值：11350.00 网站充值：1000.00 APP充值：25950.00 新增充值：8750.00 成功订单数：323 新增充值占比：32.47% 支付成功率：56.87% ","2026-03-30 01:42:12"
+"1328","2026-03-28","685456"," 活跃：1394752 苹果活跃：0 安卓活跃：949461 PWA活跃：404890 Windows活跃：573 Macos活跃：35 网站活跃：15040 "," 活跃：418503 苹果活跃：0 安卓活跃：272116 PWA活跃：130739 Windows活跃：573 Macos活跃：35 网站活跃：15040 ","314350","61574","0","39930","934","681","103119","32.80","18566.00","477"," 0 | 0 | 0.00% "," 0 | 0 | 0.00% "," 总-总充金额：27300 总-金币金额：18500 总-VIP金额：8800 总-总充人数：305 总-总充单数：319 总-新充金额：8050 总-新充人数：87 总-新充单数：92 总-老充金额：19250 总-老充人数：218 总-老充单数：227 总-订单数：564 总-成功率：54.08% "," APP-总充金额：25500 APP-金币金额：16700 APP-VIP金额：8800 APP-总充人数：289 APP-总充单数：301 APP-新充金额：7050 APP-新充人数：79 APP-新充单数：82 APP-老充金额：18450 APP-老充人数：210 APP-老充单数：219 APP-订单数：499 APP-成功率：57.92% "," 网站-总充金额：1800 网站-金币金额：1800 网站-VIP金额：0 网站-总充人数：16 网站-总充单数：18 网站-新充金额：1000 网站-新充人数：8 网站-新充单数：10 网站-老充金额：800 网站-老充人数：8 网站-老充单数：8 网站-订单数：65 网站-成功率：24.62% "," 1日留存: 19742.00 3日留存: 6799.00 7日留存: 8915.00 "," 总充值：27300.00 金币充值：18500.00 VIP充值：8800.00 网站充值：1800.00 APP充值：25500.00 新增充值：9100.00 成功订单数：319 新增充值占比：33.33% 支付成功率：56.66% ","2026-03-29 01:42:12"`;
+
+    const csvInput = document.getElementById('csvFile');
+    const dateSelect = document.getElementById('dateSelect');
+    const projectSelect = document.getElementById('projectSelect');
+    const toolbarHint = document.getElementById('toolbarHint');
+    const statusBox = document.getElementById('statusBox');
+    const cardsEl = document.getElementById('cards');
+    const detailBody = document.getElementById('detailBody');
+    const metricSelect = document.getElementById('metricSelect');
+    const rangeSelect = document.getElementById('rangeSelect');
+    const chartCanvas = document.getElementById('trendChart');
+
+    let allRows = [];
+    let currentSourceName = '未加载';
+    let currentProject = '51吃瓜';
+
+    const csvMetricOptions = [
+      { key: '新增', label: '新增' },
+      { key: '活跃', label: '活跃' },
+      { key: '安卓活跃', label: '安卓活跃' },
+      { key: 'PWA活跃', label: 'PWA活跃' },
+      { key: '安卓下载数', label: '安卓下载数' },
+      { key: 'PWA下载数', label: 'PWA下载数' },
+      { key: 'APP充值统计', label: 'APP充值统计' },
+      { key: '1日留存', label: '1日留存' },
+      { key: '3日留存', label: '3日留存' },
+      { key: '7日留存', label: '7日留存' }
+    ];
+
+    const fuliMetricOptions = [
+      { key: '总活跃', label: '总活跃' },
+      { key: '新增', label: '新增' },
+      { key: '老用户日活', label: '老用户日活' },
+      { key: '次留', label: '次留' },
+      { key: '3留', label: '3留' },
+      { key: '7留', label: '7留' }
+    ];
+
+    function setStatus(text, kind = 'info') {
+      statusBox.textContent = text;
+      const styles = {
+        info: ['rgba(77,163,255,.08)', 'rgba(77,163,255,.18)', '#cfe4ff'],
+        success: ['rgba(39,209,127,.08)', 'rgba(39,209,127,.18)', '#d8ffea'],
+        warn: ['rgba(255,184,77,.08)', 'rgba(255,184,77,.18)', '#ffe9c6'],
+        error: ['rgba(255,93,115,.08)', 'rgba(255,93,115,.18)', '#ffd7de']
+      };
+      const [bg, border, color] = styles[kind] || styles.info;
+      statusBox.style.background = bg;
+      statusBox.style.borderColor = border;
+      statusBox.style.color = color;
+    }
+
+    function parseCSV(text) {
+      const rows = [];
+      let row = [];
+      let cell = '';
+      let inQuotes = false;
+      for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        const next = text[i + 1];
+        if (char === '"') {
+          if (inQuotes && next === '"') {
+            cell += '"';
+            i++;
+          } else {
+            inQuotes = !inQuotes;
+          }
+        } else if (char === ',' && !inQuotes) {
+          row.push(cell);
+          cell = '';
+        } else if ((char === '\n' || char === '\r') && !inQuotes) {
+          if (char === '\r' && next === '\n') i++;
+          row.push(cell);
+          if (row.some(v => String(v).trim() !== '')) rows.push(row);
+          row = [];
+          cell = '';
+        } else {
+          cell += char;
+        }
+      }
+      if (cell.length || row.length) {
+        row.push(cell);
+        if (row.some(v => String(v).trim() !== '')) rows.push(row);
+      }
+      const headers = rows.shift() || [];
+      return rows.map(r => {
+        const obj = {};
+        headers.forEach((h, idx) => obj[h.trim()] = (r[idx] || '').trim());
+        return obj;
+      });
+    }
+
+    function pickFirst(row, keys = []) {
+      for (const key of keys) {
+        if (row && row[key] !== undefined && row[key] !== null && String(row[key]).trim() !== '') {
+          return row[key];
+        }
+      }
+      return '';
+    }
+
+    function toNumber(v) {
+      if (v == null) return 0;
+      const cleaned = String(v).replace(/,/g, '').replace(/%/g, '').trim();
+      const num = parseFloat(cleaned);
+      return Number.isFinite(num) ? num : 0;
+    }
+
+    function extractByLabel(text, label) {
+      const normalized = String(text || '').replace(/：/g, ':').replace(/\s+/g, ' ').trim();
+      const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const patterns = [
+        new RegExp('(?:^|\\s)' + escaped + '\\s*:\\s*([0-9.]+%?)'),
+        new RegExp(escaped + '\\s*:\\s*([0-9.]+%?)')
+      ];
+      for (const p of patterns) {
+        const match = normalized.match(p);
+        if (match) return match[1];
+      }
+      return '';
+    }
+
+    function formatNumber(num) {
+      return Number(num || 0).toLocaleString('zh-CN');
+    }
+
+    function calcChange(current, previous) {
+      const c = Number(current || 0);
+      const p = Number(previous || 0);
+      if (p === 0 && c === 0) return { text: '环比 0.00%', cls: 'tag-flat', note: '昨日 0' };
+      if (p === 0) return { text: '昨日为 0，无法直接计算环比', cls: 'tag-flat', note: '' };
+      const rate = ((c - p) / p) * 100;
+      if (Math.abs(rate) < 0.005) return { text: '环比 0.00%', cls: 'tag-flat', note: `昨日 ${formatNumber(p)}` };
+      return {
+        text: `环比 ${rate >= 0 ? '+' : ''}${rate.toFixed(2)}%`,
+        cls: rate > 0 ? 'tag-up' : 'tag-down',
+        note: `昨日 ${formatNumber(p)}`
+      };
+    }
+
+    function getCsvMetricsFromRow(row) {
+      return {
+        '新增': toNumber(row['新增']),
+        '活跃': toNumber(extractByLabel(row['日活跃'], '活跃')),
+        '安卓活跃': toNumber(extractByLabel(row['日活跃'], '安卓活跃')),
+        'PWA活跃': toNumber(extractByLabel(row['日活跃'], 'PWA活跃')),
+        '安卓下载数': toNumber(row['安卓下载数']),
+        'PWA下载数': toNumber(row['PWA下载数']),
+        'APP充值统计': toNumber(extractByLabel(row['APP充值统计'], 'APP-总充金额')),
+        '1日留存': toNumber(extractByLabel(row['留存统计'], '1日留存')),
+        '3日留存': toNumber(extractByLabel(row['留存统计'], '3日留存')),
+        '7日留存': toNumber(extractByLabel(row['留存统计'], '7日留存'))
+      };
+    }
+
+    function normalizeFuliRow(row) {
+      const date = pickFirst(row, ['日期', 'date']);
+      const activeUsers = toNumber(pickFirst(row, ['总活跃', 'activeUsers', '日活跃', '活跃']));
+      const oldActiveUsers = toNumber(pickFirst(row, ['老用户日活', 'oldActiveUsers']));
+      const newUsers = toNumber(pickFirst(row, ['新增', 'newUsers']));
+      const retention2 = toNumber(pickFirst(row, ['次留', '1留', '次日留存', 'retention2']));
+      const retention3 = toNumber(pickFirst(row, ['3留', 'retention3']));
+      const retention7 = toNumber(pickFirst(row, ['7留', 'retention7']));
+      const updatedAt = pickFirst(row, ['操作时间', 'updatedAt']);
+      const finalOldActiveUsers = oldActiveUsers > 0 ? oldActiveUsers : Math.max(activeUsers - newUsers, 0);
+
+      return {
+        '日期': date,
+        '总活跃': activeUsers,
+        '老用户日活': finalOldActiveUsers,
+        '新增': newUsers,
+        '次留': retention2,
+        '3留': retention3,
+        '7留': retention7,
+        '操作时间': updatedAt
+      };
+    }
+
+    function getMetricsFromRow(row) {
+      if (currentProject === '51福利导航') {
+        const normalized = normalizeFuliRow(row);
+        return {
+          '总活跃': normalized['总活跃'],
+          '新增': normalized['新增'],
+          '老用户日活': normalized['老用户日活'],
+          '次留': normalized['次留'],
+          '3留': normalized['3留'],
+          '7留': normalized['7留']
+        };
+      }
+      return getCsvMetricsFromRow(row);
+    }
+
+    function buildCsvData(current, prev) {
+      const empty = {
+        '日期': '-', '操作时间': '-', '新增': '0', '日活跃': '', '安卓下载数': '0', 'PWA下载数': '0', 'APP充值统计': '', '留存统计': ''
+      };
+      prev = prev || empty;
+
+      const currentMetrics = getCsvMetricsFromRow(current);
+      const prevMetrics = getCsvMetricsFromRow(prev);
+      const appUsers = toNumber(extractByLabel(current['APP充值统计'], 'APP-总充人数'));
+      const appOrders = toNumber(extractByLabel(current['APP充值统计'], 'APP-总充单数'));
+      const appSuccess = extractByLabel(current['APP充值统计'], 'APP-成功率') || '0%';
+
+      return {
+        meta: {
+          latestDate: current['日期'] || '-',
+          prevDate: prev['日期'] || '无前一天数据',
+          updatedAt: current['操作时间'] || '-'
+        },
+        cards: [
+          { name: '新增', source: '列：新增', current: currentMetrics['新增'], prev: prevMetrics['新增'] },
+          { name: '活跃', source: '列：日活跃 → 活跃', current: currentMetrics['活跃'], prev: prevMetrics['活跃'] },
+          { name: '安卓活跃', source: '列：日活跃 → 安卓活跃', current: currentMetrics['安卓活跃'], prev: prevMetrics['安卓活跃'] },
+          { name: 'PWA活跃', source: '列：日活跃 → PWA活跃', current: currentMetrics['PWA活跃'], prev: prevMetrics['PWA活跃'] },
+          { name: '安卓下载数', source: '列：安卓下载数', current: currentMetrics['安卓下载数'], prev: prevMetrics['安卓下载数'] },
+          { name: 'PWA下载数', source: '列：PWA下载数', current: currentMetrics['PWA下载数'], prev: prevMetrics['PWA下载数'] },
+          {
+            name: 'APP充值统计', source: '列：APP充值统计 → APP-总充金额', current: currentMetrics['APP充值统计'], prev: prevMetrics['APP充值统计'],
+            extra: [`总充人数 ${formatNumber(appUsers)}`, `总充单数 ${formatNumber(appOrders)}`, `成功率 ${appSuccess}`]
+          },
+          {
+            name: '留存统计', source: '列：留存统计 → 1日/3日/7日留存',
+            current: [currentMetrics['1日留存'], currentMetrics['3日留存'], currentMetrics['7日留存']][0],
+            prev: [prevMetrics['1日留存'], prevMetrics['3日留存'], prevMetrics['7日留存']][0],
+            extra: [
+              `1日 ${formatNumber(currentMetrics['1日留存'])}`,
+              `3日 ${formatNumber(currentMetrics['3日留存'])}`,
+              `7日 ${formatNumber(currentMetrics['7日留存'])}`
+            ]
+          }
+        ]
+      };
+    }
+
+    function buildFuliData(current, prev) {
+      const currentRow = normalizeFuliRow(current || {});
+      const prevRow = normalizeFuliRow(prev || {});
+      return {
+        meta: {
+          latestDate: currentRow['日期'] || '-',
+          prevDate: prevRow['日期'] || '无前一天数据',
+          updatedAt: currentRow['操作时间'] || '-'
+        },
+        cards: [
+          { name: '总活跃', source: '字段：总活跃 / activeUsers', current: currentRow['总活跃'], prev: prevRow['总活跃'] },
+          { name: '新增', source: '字段：新增 / newUsers', current: currentRow['新增'], prev: prevRow['新增'] },
+          { name: '老用户日活', source: '字段：老用户日活 / oldActiveUsers', current: currentRow['老用户日活'], prev: prevRow['老用户日活'] },
+          { name: '次留', source: '字段：次留 / retention2', current: currentRow['次留'], prev: prevRow['次留'] },
+          { name: '3留', source: '字段：3留 / retention3', current: currentRow['3留'], prev: prevRow['3留'] },
+          { name: '7留', source: '字段：7留 / retention7', current: currentRow['7留'], prev: prevRow['7留'] }
+        ]
+      };
+    }
+
+    function buildData(current, prev) {
+      if (currentProject === '51福利导航') {
+        return buildFuliData(current, prev);
+      }
+      return buildCsvData(current, prev);
+    }
+
+    function renderDashboard(data, sourceName) {
+      document.getElementById('currentProject').textContent = currentProject;
+      document.getElementById('latestDate').textContent = data.meta.latestDate;
+      document.getElementById('prevDate').textContent = data.meta.prevDate;
+      document.getElementById('dataSource').textContent = sourceName;
+      document.getElementById('updatedAt').textContent = data.meta.updatedAt;
+      cardsEl.innerHTML = '';
+      detailBody.innerHTML = '';
+
+      data.cards.forEach((item, index) => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        const change = calcChange(item.current, item.prev);
+        card.innerHTML = `<div><h3>${index + 1}. ${item.name}</h3><div class="value">${formatNumber(item.current)}</div>${item.extra ? `<div class="sub-values">${item.extra.map(x => `<span>${x}</span>`).join('')}</div>` : ''}</div><div class="compare"><span class="${change.cls}">${change.text}</span>${change.note ? `<span>${change.note}</span>` : ''}</div>`;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${item.name}</td><td>${item.source}</td><td>${formatNumber(item.current)}</td><td>${formatNumber(item.prev)}</td><td>${change.text.replace('环比 ', '')}</td>`;
+        detailBody.appendChild(tr);
+        cardsEl.appendChild(card);
+      });
+    }
+
+    function fillDateOptions(rows) {
+      dateSelect.innerHTML = '<option value="">请选择日期</option>';
+      rows.forEach((row, idx) => {
+        const option = document.createElement('option');
+        option.value = idx;
+        option.textContent = row['日期'];
+        dateSelect.appendChild(option);
+      });
+      if (rows.length) dateSelect.value = '0';
+    }
+
+    function fillMetricOptions() {
+      metricSelect.innerHTML = '';
+      const metricOptions = currentProject === '51福利导航' ? fuliMetricOptions : csvMetricOptions;
+      metricOptions.forEach((item, idx) => {
+        const option = document.createElement('option');
+        option.value = item.key;
+        option.textContent = item.label;
+        if (idx === 0) option.selected = true;
+        metricSelect.appendChild(option);
+      });
+    }
+
+    function syncProjectUi() {
+      document.getElementById('currentProject').textContent = currentProject;
+      csvInput.disabled = false;
+      document.querySelector('label[for="csvFile"]').style.opacity = '1';
+      document.getElementById('loadSampleBtn').style.display = currentProject === '51吃瓜' ? 'inline-flex' : 'none';
+      toolbarHint.textContent = currentProject === '51吃瓜'
+        ? '51吃瓜：可导入 CSV，或先加载示例数据预览页面结构'
+        : '51福利导航：建议使用统一字段数据。可导入 JSON 数组调试，字段支持 日期/date、总活跃/activeUsers、老用户日活/oldActiveUsers、新增/newUsers、次留/retention2、3留/retention3、7留/retention7、操作时间/updatedAt';
+      fillMetricOptions();
+    }
+
+    function renderByIndex(index) {
+      if (!allRows.length) return;
+      const current = allRows[index];
+      const prev = allRows[index + 1] || null;
+      const data = buildData(current, prev);
+      renderDashboard(data, currentSourceName);
+      renderTrendChart();
+      setStatus(`当前显示 ${data.meta.latestDate} 的数据，环比对比 ${data.meta.prevDate}。你可以切换日期，也可以切换趋势图指标与周期。`, 'success');
+    }
+
+    function processCsv(text, sourceName = '用户导入CSV') {
+      try {
+        allRows = parseCSV(text)
+          .filter(r => r['日期'])
+          .sort((a, b) => String(b['日期']).localeCompare(String(a['日期'])));
+        if (!allRows.length) {
+          setStatus('CSV 没有识别到有效日期数据。', 'error');
+          return;
+        }
+        currentSourceName = sourceName;
+        fillDateOptions(allRows);
+        fillMetricOptions();
+        renderByIndex(0);
+      } catch (err) {
+        console.error(err);
+        setStatus('CSV 解析失败，请确认文件格式正确。', 'error');
+      }
+    }
+
+    function processFuliRows(rows, sourceName = '51福利导航统一数据') {
+      try {
+        allRows = rows
+          .map(normalizeFuliRow)
+          .filter(r => r['日期'])
+          .sort((a, b) => String(b['日期']).localeCompare(String(a['日期'])));
+        if (!allRows.length) {
+          setStatus('51福利导航没有识别到有效日期数据。', 'error');
+          return;
+        }
+        currentSourceName = sourceName;
+        fillDateOptions(allRows);
+        fillMetricOptions();
+        renderByIndex(0);
+      } catch (err) {
+        console.error(err);
+        setStatus('51福利导航数据处理失败。', 'error');
+      }
+    }
+
+    function renderTrendChart() {
+      const metric = metricSelect.value || '新增';
+      const range = Number(rangeSelect.value || 30);
+      const ascRows = [...allRows].sort((a, b) => String(a['日期']).localeCompare(String(b['日期'])));
+      const sliced = range >= 9999 ? ascRows : ascRows.slice(-range);
+      const points = sliced.map(row => ({ date: row['日期'], value: getMetricsFromRow(row)[metric] || 0 }));
+      drawLineChart(points, metric);
+    }
+
+    function drawLineChart(points, metric) {
+      const canvas = chartCanvas;
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width;
+      const h = canvas.height;
+      ctx.clearRect(0, 0, w, h);
+
+      ctx.fillStyle = '#121a2b';
+      ctx.fillRect(0, 0, w, h);
+
+      if (!points.length) return;
+
+      const padding = { top: 30, right: 30, bottom: 50, left: 70 };
+      const chartW = w - padding.left - padding.right;
+      const chartH = h - padding.top - padding.bottom;
+      const values = points.map(p => p.value);
+      let min = Math.min(...values);
+      let max = Math.max(...values);
+      if (min === max) { min = 0; max = max || 1; }
+      const stepX = points.length > 1 ? chartW / (points.length - 1) : chartW / 2;
+
+      ctx.strokeStyle = 'rgba(255,255,255,.08)';
+      ctx.lineWidth = 1;
+      for (let i = 0; i < 5; i++) {
+        const y = padding.top + (chartH / 4) * i;
+        ctx.beginPath();
+        ctx.moveTo(padding.left, y);
+        ctx.lineTo(w - padding.right, y);
+        ctx.stroke();
+      }
+
+      ctx.fillStyle = '#93a4c3';
+      ctx.font = '12px sans-serif';
+      ctx.textAlign = 'right';
+      for (let i = 0; i < 5; i++) {
+        const value = max - ((max - min) / 4) * i;
+        const y = padding.top + (chartH / 4) * i + 4;
+        ctx.fillText(formatNumber(Math.round(value)), padding.left - 10, y);
+      }
+
+      const xy = points.map((p, i) => {
+        const x = padding.left + (points.length > 1 ? stepX * i : chartW / 2);
+        const y = padding.top + chartH - ((p.value - min) / (max - min || 1)) * chartH;
+        return { ...p, x, y };
+      });
+
+      const gradient = ctx.createLinearGradient(0, padding.top, 0, padding.top + chartH);
+      gradient.addColorStop(0, 'rgba(77,163,255,.35)');
+      gradient.addColorStop(1, 'rgba(77,163,255,0)');
+
+      ctx.beginPath();
+      xy.forEach((p, i) => { if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
+      ctx.lineTo(xy[xy.length - 1].x, padding.top + chartH);
+      ctx.lineTo(xy[0].x, padding.top + chartH);
+      ctx.closePath();
+      ctx.fillStyle = gradient;
+      ctx.fill();
+
+      ctx.beginPath();
+      xy.forEach((p, i) => { if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
+      ctx.strokeStyle = '#4da3ff';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      ctx.fillStyle = '#4da3ff';
+      xy.forEach(p => {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      ctx.fillStyle = '#eaf1ff';
+      ctx.font = 'bold 16px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText(metric + ' 趋势', padding.left, 20);
+
+      ctx.fillStyle = '#93a4c3';
+      ctx.font = '12px sans-serif';
+      ctx.textAlign = 'center';
+      const labelStep = Math.max(1, Math.ceil(points.length / 8));
+      xy.forEach((p, i) => {
+        if (i % labelStep === 0 || i === xy.length - 1) {
+          ctx.fillText(p.date.slice(5), p.x, h - 18);
+        }
+      });
+    }
+
+    csvInput.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        if (currentProject === '51福利导航' && (file.name.endsWith('.json') || file.type.includes('json'))) {
+          const text = await file.text();
+          const parsed = JSON.parse(text);
+          processFuliRows(Array.isArray(parsed) ? parsed : (parsed.rows || []), file.name);
+          return;
+        }
+        const text = await file.text();
+        processCsv(text, file.name);
+      } catch (err) {
+        console.error(err);
+        setStatus('读取文件失败，请确认格式后重试。', 'error');
+      }
+    });
+
+    dateSelect.addEventListener('change', () => {
+      const idx = Number(dateSelect.value);
+      if (!Number.isInteger(idx)) return;
+      renderByIndex(idx);
+    });
+
+    metricSelect.addEventListener('change', renderTrendChart);
+    rangeSelect.addEventListener('change', renderTrendChart);
+
+    projectSelect.addEventListener('change', () => {
+      currentProject = projectSelect.value;
+      syncProjectUi();
+      cardsEl.innerHTML = '';
+      detailBody.innerHTML = '';
+      allRows = [];
+      dateSelect.innerHTML = '<option value="">请选择日期</option>';
+      document.getElementById('latestDate').textContent = '-';
+      document.getElementById('prevDate').textContent = '-';
+      document.getElementById('dataSource').textContent = '等待数据';
+      document.getElementById('updatedAt').textContent = '-';
+      if (currentProject === '51吃瓜') {
+        processCsv(sampleCsv, '51吃瓜-内置示例数据');
+      } else {
+        setStatus('已切换到 51福利导航。请导入统一字段 JSON，或后续接入后端接口数据。', 'info');
+      }
+    });
+
+    document.getElementById('loadSampleBtn').addEventListener('click', () => {
+      currentProject = '51吃瓜';
+      projectSelect.value = '51吃瓜';
+      syncProjectUi();
+      processCsv(sampleCsv, '51吃瓜-内置示例数据');
+    });
+
+    syncProjectUi();
+    processCsv(sampleCsv, '51吃瓜-内置示例数据');
+  </script>
+</body>
+</html>
