@@ -519,7 +519,16 @@
         if (!resp.ok) throw new Error('HTTP ' + resp.status);
         const parsed = await resp.json();
         const rows = Array.isArray(parsed) ? parsed : (parsed.rows || []);
-        processFuliRows(rows, 'chigua-data.json');
+        allRows = rows
+          .filter(r => r['日期'])
+          .sort((a, b) => String(b['日期']).localeCompare(String(a['日期'])));
+        if (!allRows.length) {
+          throw new Error('empty rows');
+        }
+        currentSourceName = 'chigua-data.json';
+        fillDateOptions(allRows);
+        fillMetricOptions();
+        renderByIndex(0);
         setStatus('已自动读取 chigua-data.json。你也可以手动导入 CSV 进行覆盖。', 'success');
       } catch (err) {
         console.error(err);
