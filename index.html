@@ -512,6 +512,22 @@
       }
     }
 
+    async function loadChiguaAuto() {
+      try {
+        setStatus('正在读取 51吃瓜 自动数据...', 'info');
+        const resp = await fetch('./chigua-data.json', { cache: 'no-store' });
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        const parsed = await resp.json();
+        const rows = Array.isArray(parsed) ? parsed : (parsed.rows || []);
+        processFuliRows(rows, 'chigua-data.json');
+        setStatus('已自动读取 chigua-data.json。你也可以手动导入 CSV 进行覆盖。', 'success');
+      } catch (err) {
+        console.error(err);
+        processCsv(sampleCsv, '51吃瓜-内置示例数据');
+        setStatus('自动读取 chigua-data.json 失败，已回退到示例数据。你也可以手动导入 CSV。', 'warn');
+      }
+    }
+
     function processFuliRows(rows, sourceName = '51福利导航统一数据') {
       try {
         allRows = rows
@@ -688,7 +704,7 @@
       document.getElementById('dataSource').textContent = '等待数据';
       document.getElementById('updatedAt').textContent = '-';
       if (currentProject === '51吃瓜') {
-        processCsv(sampleCsv, '51吃瓜-内置示例数据');
+        loadChiguaAuto();
       } else {
         loadFuliAuto();
       }
@@ -702,7 +718,7 @@
     });
 
     syncProjectUi();
-    processCsv(sampleCsv, '51吃瓜-内置示例数据');
+    loadChiguaAuto();
   </script>
 </body>
 </html>
