@@ -102,7 +102,7 @@
     <div class="header">
       <div class="title-box">
         <h1>WJ-特战队1-app运营组</h1>
-        <p>双项目工作台：51吃瓜（CSV） + 51福利导航（统一数据取数）</p>
+        <p>双项目工作台：51吃瓜（自动读取 chigua-data.json） + 51福利导航（自动读取 fuli-ga4.json）</p>
         <div class="toolbar">
           <select id="projectSelect">
             <option value="51吃瓜">51吃瓜（CSV）</option>
@@ -141,7 +141,7 @@
       <div class="chart-wrap">
         <canvas id="trendChart" width="1200" height="360"></canvas>
       </div>
-      <div class="chart-note">支持切换指标与周期范围。51吃瓜使用 CSV；51福利导航建议后端输出统一字段（日期、总活跃、老用户日活、新增、次留、3留、7留、操作时间）后再给前端展示。</div>
+      <div class="chart-note">当前线上版本：51吃瓜自动读取 chigua-data.json；51福利导航自动读取 fuli-ga4.json。支持切换指标与周期范围，也支持手动导入作为兜底。</div>
     </div>
 
     <div class="section">
